@@ -1,6 +1,6 @@
 module traas.org/sheetservice
 
 require (
-	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
 	google.golang.org/api v0.57.0
 )
