@@ -1,2 +1,11 @@
-{
-}
+[
+    {
+        "characterKey": "rowan",
+        "sheetId": "19J5G8y9jKLAYc7xkMwaRj0eGuykzS46mrV4dOFCvYRE",
+        "attributes": [
+            {"name": "hpMax", "range": "HP_MAX"},
+            {"name": "hp", "range": "HP_CURRENT"},
+            {"name": "ac", "range": "AC_STANDARD"}
+        ]
+    }
+]
