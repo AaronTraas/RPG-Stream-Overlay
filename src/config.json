@@ -5,7 +5,8 @@
         "attributes": [
             {"name": "hpMax", "range": "HP_MAX"},
             {"name": "hp", "range": "HP_CURRENT"},
-            {"name": "ac", "range": "AC_STANDARD"}
+            {"name": "ac", "range": "AC_STANDARD"},
+            {"name": "initiative", "range": "INITIATIVE"}
         ]
     }
 ]

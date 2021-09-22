@@ -1,0 +1,151 @@
+<html>
+<head></head>
+<style type="text/css">
+  @font-face {
+      font-family: 'trajan';
+      src: url('fonts/trajan_regular-webfont.woff2') format('woff2');
+      font-weight: normal;
+      font-style: normal;
+  }
+
+  * { 
+    box-sizing: border-box;
+  }
+  html {
+    background: #fff;
+    color: #fff;
+    padding: 0;
+    margin: 0;
+  }
+  body {
+    font-family: trajan, serif;
+    padding: 0;
+    margin: 0 auto;
+    width: 1920px;
+    height: 1080px;
+    background: url(images/starwars_background.jpg) no-repeat center center;
+    position: relative;
+    overflow: hidden;
+  }
+  body::before, body::after {
+    content: "";
+    display: block;
+    position: absolute;
+    top: 0;
+    width: 501px;
+    height: 56px;
+    background-repeat: no-repeat;
+    background-position: center top;
+  }
+  body::before {
+    background-image: url(images/decoration_topleft.png);
+    left: -160px;
+  }
+  body::after {
+    background-image: url(images/decoration_topright.png);
+    right: -160px;
+  }
+
+  h1 {
+    position: absolute;
+    margin: 0 auto;
+    padding: 0;
+    font-size: 90px;
+    top: 40px;
+    text-transform: uppercase;
+    text-align: center;
+    width: 100%;
+    font-weight: normal;
+  }
+  nav {
+    font-size: 70px;
+    padding: 100px 20px;
+    width: 426px;
+    height: 325px;
+    background: url(images/stats_box.png) no-repeat center center;
+    position: absolute;
+    bottom: 0;
+    left: 100px;
+    overflow: hidden;
+  }
+  dl {
+    margin: 0;
+    padding: 0;
+    display: table;
+    width: 100%;
+  }
+  dl > div {
+    display: table-row;
+  }
+  dl > div > dt,
+  dl > div > dd {
+    display: table-cell;
+    padding: 5px 20px;
+  }
+  dl > div > dt {
+  }
+  dl > div > dd {
+    text-align: right;
+  }
+
+  figure {
+    position: absolute;
+    display: block;
+    right: 100px;
+    top: 160px;
+    left: 600px;
+    bottom: 60px;
+    border: 2px solid #fff;
+    border-radius: 14px;
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+
+  figure::before, figure::after {
+    content: "";
+    display: block;
+    position: absolute;
+    left: 7px;
+    top: 7px;
+    bottom: 7px;
+    right: 7px;
+    border-radius: 5px;
+  }
+
+  figure::after {
+    border: 1px solid #000;
+    margin: 1px;
+    background: linear-gradient(0deg, rgba(10,25,44,0) 70%, rgba(10,25,44,1) 100%); 
+  }
+
+  figure::before {
+    background: linear-gradient(0deg, rgba(10,25,44,0) 0%, rgba(10,25,44,1) 100%); 
+    background-position: center top;
+    background-image: url(images/rowan.jpg);
+    position: absolute;
+    border: 1px solid #aaa;
+  }
+
+</style>
+<body>
+  <h1>Rowan Cloudcaster</h1>
+
+  <figure>
+  </figure>
+
+  <nav id="stats">
+    <div>
+      <dl>
+        <div>
+          <dt>HP: </dt>
+          <dd id="hp-value">0 / 0</dd>
+        </div>
+        <div>
+          <dt>AC: </dt>
+          <dd id="ac-value">0</dd>
+        </div>
+      </dl>
+    </div>
+  </nav>
+
+</body>
+</html>
