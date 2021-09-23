@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -47,7 +48,7 @@ type ResponseMetadata struct {
 }
 
 type ApiResponse struct {
-	Attributes    map[string]string `json:"attributes,omitempty"`
+	Attributes    *map[string]string `json:"attributes,omitempty"`
 	CharacterUrls []string          `json:"characterUrls,omitempty"`
 	Metadata      ResponseMetadata  `json:"metadata"`
 }
@@ -120,7 +121,7 @@ func NewCharacterSheetApp() *CharacterSheetServiceApp {
 	return &app
 }
 
-func (app CharacterSheetServiceApp) fetchCharacterAttributesFromSheetsApi(charConfig ConfigEntry) map[string]interface {
+func (app CharacterSheetServiceApp) fetchCharacterAttributesFromSheetsApi(charConfig ConfigEntry) *map[string]string {
 	// Construct array of ranges to call from sheet in batch
 	ranges := []string{}
 	for _, attr := range charConfig.Attributes {
@@ -134,33 +135,33 @@ func (app CharacterSheetServiceApp) fetchCharacterAttributesFromSheetsApi(charCo
 	}
 
 	// map ranges to names from config attributes
-	charMap := map[string]interface{}{}
+	charMap := map[string]string{}
 	for i, attr := range charConfig.Attributes {
 		valueRange := batchResp.ValueRanges[i]
 		if len(valueRange.Values) == 0 {
 			log.Println("No data found.")
 		} else {
-			charMap[attr.Name] = valueRange.Values[0][0]
+			charMap[attr.Name] = fmt.Sprintf("%v", valueRange.Values[0][0])
 		}
 	}
 
-	return charMap
+	return &charMap
 }
 
-func (app CharacterSheetServiceApp) LookupCharacter(charKey string) (string, bool) {
+func (app CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string]string, bool) {
 	log.Println("---")
 	log.Printf("Looking for character '%s'... ", charKey)
 
 	charConfig, keyExists := app.Characters[charKey]
 	if !keyExists {
-		return "{}", false
+		return nil, false
 	}
 
 	cachedCharMap, found := app.Cache.Get(charKey)
 
 	if found {
 		log.Printf("CACHE hit - '%s'... ", charConfig.CharacterKey)
-		return cachedCharMap.(string), true
+		return cachedCharMap.(*map[string]string), true
 	}
 
 	log.Printf("CACHE miss - Retrieving attributes for '%s'... ", charConfig.CharacterKey)
@@ -199,7 +200,7 @@ func (app CharacterSheetServiceApp) HandleCharacterRequest(w http.ResponseWriter
 	vars := mux.Vars(r)
 	charKey := vars["characterKey"]
 
-	charJson, found := app.LookupCharacter(charKey)
+	charAttributes, found := app.LookupCharacter(charKey)
 
 	if !found {
 		log.Printf("Character '%s' not found.\n", charKey)
@@ -207,8 +208,18 @@ func (app CharacterSheetServiceApp) HandleCharacterRequest(w http.ResponseWriter
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(charJson))
+	now := time.Now()
+	response := ApiResponse{
+		Attributes: charAttributes,
+		Metadata: ResponseMetadata{
+			StatusCode:       http.StatusOK,
+			RequestTimestamp: &now,
+			RequestUri:       r.URL.Path,
+			//Cached:           false,
+		},
+	}
+
+	writeJsonResponse(w, response)
 }
 
 func main() {
