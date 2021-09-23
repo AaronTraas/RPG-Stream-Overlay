@@ -55,7 +55,6 @@ type ApiResponse struct {
 }
 
 func getConfig() map[string]ConfigEntry {
-
 	log.Println("-- loading character configuration")
 
 	fileBytes, err := ioutil.ReadFile("config.json")
