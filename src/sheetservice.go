@@ -38,11 +38,11 @@ type CharacterSheetServiceApp struct {
 }
 
 type ResponseMetadata struct {
-	StatusCode       uint       `json:"statusCode"`
+	StatusCode       int        `json:"statusCode"`
 	ErrorMessage     string     `json:"errorMessage,omitempty"`
 	RequestUri       string     `json:"request"`
 	RequestTimestamp *time.Time `json:"requestTimestamp"`
-	Cached           bool       `json:"statusMessage,omitempty"`
+	Cached           bool       `json:"cached"`
 	CacheTimestamp   *time.Time `json:"cacheTimestamp,omitempty"`
 }
 
@@ -173,11 +173,11 @@ func (app CharacterSheetServiceApp) LookupCharacter(charKey string) (string, boo
 	return charMap, true
 }
 
-func writeJsonResponse(w http.ResponseWriter, response ApiResponse) {
+func writeJsonResponse(w http.ResponseWriter, response ApiResponse,) {
 	responseJson, _ := json.MarshalIndent(response, "", "  ")
 
+	w.WriteHeader(response.Metadata.StatusCode)
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(response.StatusCode)
 	w.Write(responseJson)
 }
 
