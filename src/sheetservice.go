@@ -31,10 +31,25 @@ type ConfigEntry struct {
 }
 
 type CharacterSheetServiceApp struct {
-	Characters            map[string]ConfigEntry
-	ValidUrlsResponseJson []byte
-	GoogleSheetService    *sheets.Service
-	Cache                 *cache.Cache
+	Characters         map[string]ConfigEntry
+	ValidUrls          []string
+	GoogleSheetService *sheets.Service
+	Cache              *cache.Cache
+}
+
+type ResponseMetadata struct {
+	StatusCode       uint       `json:"statusCode"`
+	ErrorMessage     string     `json:"errorMessage,omitempty"`
+	RequestUri       string     `json:"request"`
+	RequestTimestamp *time.Time `json:"requestTimestamp"`
+	Cached           bool       `json:"statusMessage,omitempty"`
+	CacheTimestamp   *time.Time `json:"cacheTimestamp,omitempty"`
+}
+
+type ApiResponse struct {
+	Attributes    map[string]string `json:"attributes,omitempty"`
+	CharacterUrls []string          `json:"characterUrls,omitempty"`
+	Metadata      ResponseMetadata  `json:"metadata"`
 }
 
 func getConfig() map[string]ConfigEntry {
@@ -98,11 +113,9 @@ func NewCharacterSheetApp() *CharacterSheetServiceApp {
 		Cache: cache.New(1*time.Minute, time.Hour),
 	}
 
-	validUrls := []string{}
 	for key := range app.Characters {
-		validUrls = append(validUrls, "/"+key)
+		app.ValidUrls = append(app.ValidUrls, "/"+key)
 	}
-	app.ValidUrlsResponseJson, _ = json.MarshalIndent(validUrls, "", "  ")
 
 	return &app
 }
@@ -164,7 +177,21 @@ func (app CharacterSheetServiceApp) HandleNotFound(w http.ResponseWriter, r *htt
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotFound)
 
-	w.Write(app.ValidUrlsResponseJson)
+	now := time.Now()
+	response := ApiResponse{
+		CharacterUrls: app.ValidUrls,
+		Metadata: ResponseMetadata{
+			StatusCode:       http.StatusNotFound,
+			ErrorMessage:     "No character found; see list of valid character paths in the payload.",
+			RequestTimestamp: &now,
+			RequestUri:       r.URL.Path,
+			Cached:           false,
+		},
+	}
+
+	responseJson, _ := json.MarshalIndent(response, "", "  ")
+
+	w.Write(responseJson)
 }
 
 func (app CharacterSheetServiceApp) HandleCharacterRequest(w http.ResponseWriter, r *http.Request) {
