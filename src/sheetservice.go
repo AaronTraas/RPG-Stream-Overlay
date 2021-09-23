@@ -173,10 +173,15 @@ func (app CharacterSheetServiceApp) LookupCharacter(charKey string) (string, boo
 	return charMap, true
 }
 
-func (app CharacterSheetServiceApp) HandleNotFound(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotFound)
+func writeJsonResponse(w http.ResponseWriter, response ApiResponse) {
+	responseJson, _ := json.MarshalIndent(response, "", "  ")
 
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	w.Write(responseJson)
+}
+
+func (app CharacterSheetServiceApp) HandleNotFound(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	response := ApiResponse{
 		CharacterUrls: app.ValidUrls,
@@ -189,9 +194,7 @@ func (app CharacterSheetServiceApp) HandleNotFound(w http.ResponseWriter, r *htt
 		},
 	}
 
-	responseJson, _ := json.MarshalIndent(response, "", "  ")
-
-	w.Write(responseJson)
+	writeJsonResponse(w, response)
 }
 
 func (app CharacterSheetServiceApp) HandleCharacterRequest(w http.ResponseWriter, r *http.Request) {
