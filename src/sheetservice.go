@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
+
+	"github.com/gorilla/mux"
 
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
@@ -26,7 +29,7 @@ type ConfigEntry struct {
 	Attributes   []AttributeRow `json:"attributes"`
 }
 
-func getConfig() []ConfigEntry {
+func getConfig() map[string]ConfigEntry {
 
 	fileBytes, err := ioutil.ReadFile("config.json")
 	if err != nil {
@@ -40,7 +43,12 @@ func getConfig() []ConfigEntry {
 		log.Fatalf("Invalid config.json: %v", err)
 	}
 
-	return config
+	configMap := map[string]ConfigEntry{}
+	for _, configEntry := range config {
+		configMap[configEntry.CharacterKey] = configEntry
+	}
+
+	return configMap
 }
 
 func getService() *sheets.Service {
@@ -58,51 +66,74 @@ func getService() *sheets.Service {
 		log.Fatalf("Invalid api-key.json: %v", err)
 	}
 
-	srv, err := sheets.NewService(ctx, option.WithAPIKey(apiConfig.ApiKey))
+	googleSheetService, err := sheets.NewService(ctx, option.WithAPIKey(apiConfig.ApiKey))
 	if err != nil {
 		log.Fatalf("Unable to retrieve Sheets client: %v", err)
 	}
 
-	return srv
+	return googleSheetService
+}
+
+func getCharacterMap(charConfig ConfigEntry, googleSheetService *sheets.Service) string {
+	// Construct array of ranges to call from sheet in batch
+	ranges := []string{}
+	for _, attr := range charConfig.Attributes {
+		ranges = append(ranges, attr.Range)
+	}
+
+	// Query sheet for list of ranges
+	fmt.Printf("---\nRetrieving attributes for '%s'... ", charConfig.CharacterKey)
+	batchResp, err := googleSheetService.Spreadsheets.Values.BatchGet(charConfig.SheetId).Ranges(ranges...).Do()
+	if err != nil {
+		log.Fatalf("Unable to retrieve data from sheet: %v", err)
+	} else {
+		fmt.Println("Success!")
+	}
+
+	// map ranges to names from config attributes
+	charMap := map[string]interface{}{}
+	for i, attr := range charConfig.Attributes {
+		valueRange := batchResp.ValueRanges[i]
+		if len(valueRange.Values) == 0 {
+			fmt.Println("No data found.")
+		} else {
+			charMap[attr.Name] = valueRange.Values[0][0]
+		}
+	}
+
+	jsonBytes, _ := json.MarshalIndent(charMap, "", "  ")
+
+	return string(jsonBytes)
 }
 
 func main() {
 	config := getConfig()
-	srv := getService()
+	googleSheetService := getService()
 
-	// map for serialization of results
-	out := map[string]interface{}{}
+	router := mux.NewRouter()
 
-	for _, c := range config {
-		// Construct array of ranges to call from sheet in batch
-		ranges := []string{}
-		for _, attr := range c.Attributes {
-			ranges = append(ranges, attr.Range)
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		urls := []string{}
+		for key := range config {
+			urls = append(urls, "/"+key)
 		}
 
-		// Query sheet for list of ranges
-		fmt.Printf("---\nRetrieving attributes for '%s'... ", c.CharacterKey)
-		batchResp, err := srv.Spreadsheets.Values.BatchGet(c.SheetId).Ranges(ranges...).Do()
-		if err != nil {
-			log.Fatalf("Unable to retrieve data from sheet: %v", err)
-		} else {
-			fmt.Println("Success!")
-		}
+		response, _ := json.MarshalIndent(urls, "", "  ")
+		w.Write(response)
+	}).Methods("GET")
 
-		// map ranges to names from config attributes
-		entry := map[string]interface{}{}
-		for i, attr := range c.Attributes {
-			valueRange := batchResp.ValueRanges[i]
-			if len(valueRange.Values) == 0 {
-				fmt.Println("No data found.")
-			} else {
-				entry[attr.Name] = valueRange.Values[0][0]
-			}
-		}
+	router.HandleFunc("/{characterKey}", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 
-		out[c.CharacterKey] = entry
-	}
+		vars := mux.Vars(r)
+		charKey := vars["characterKey"]
 
-	jsonString, _ := json.MarshalIndent(out, "", "  ")
-	fmt.Printf("\n%s\n", jsonString)
+		charMap := getCharacterMap(config[charKey], googleSheetService)
+
+		fmt.Println(charMap)
+		fmt.Fprintln(w, charMap)
+	}).Methods("GET")
+
+	log.Fatal(http.ListenAndServe(":9090", router))
 }
