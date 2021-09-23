@@ -171,6 +171,10 @@ func (app CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string
 	log.Printf("CACHE miss - Retrieving attributes for '%s'... ", charConfig.CharacterKey)
 	charMap := app.fetchCharacterAttributesFromSheetsApi(charConfig)
 	app.Cache.Set(charKey, charMap, cache.DefaultExpiration)
+	// FIXME - potential race condition here. I should probably manage cache expiry manually, and 
+	// trigger a goroutine locked behind a semaphor to update the cache in the background, and in 
+	// the meantime return the cached values. This way, we can never be making more than one query 
+	// at a time. 
 
 	return charMap, true, false
 }
@@ -232,6 +236,7 @@ func main() {
 
 	app := NewCharacterSheetApp()
 
+	// FIXME: prime the cache with all values before starting the mux.
 	router := mux.NewRouter()
 
 	// set up route for character lookup
@@ -240,9 +245,9 @@ func main() {
 	// default 404 handler
 	router.NotFoundHandler = router.NewRoute().HandlerFunc(app.HandleNotFound).GetHandler()
 
+	// CORS stuff -- no security at all! It's fine, because there's very little damage we can do.
 	credentials := handlers.AllowCredentials()
 	methods := handlers.AllowedMethods([]string{"POST"})
-	//ttl := handlers.MaxAge(3600)
 	origins := handlers.AllowedOrigins([]string{"*"})
 
 	log.Println("Character Sheet Service Application running on port 9090")
