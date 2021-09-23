@@ -1,194 +1,292 @@
-<html>
-<head></head>
-<style type="text/css">
-  @font-face {
-      font-family: 'trajan';
-      src: url('fonts/trajan_regular-webfont.woff2') format('woff2');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+  <title>OBS Overlay - Rowan Cloudcaster</title>
+  <style type="text/css">
+    @font-face {
+        font-family: 'trajan';
+        src: url('fonts/trajan_regular-webfont.woff2') format('woff2');
+        font-weight: normal;
+        font-style: normal;
+    }
+
+    @font-face {
+        font-family: 'scelet_af';
+        src: url('fonts/sceletaf-webfont.woff2') format('woff2');
+        font-weight: normal;
+        font-style: normal;
+
+    }
+    @font-face {
+      font-family: 'almostthere';
+      src: url('fonts/almostthere-numeric-webfont.woff2') format('woff2');
       font-weight: normal;
       font-style: normal;
-  }
 
-  @font-face {
-      font-family: 'scelet_af';
-      src: url('fonts/sceletaf-webfont.woff2') format('woff2');
+    }
+
+    @font-face {
+        font-family: 'galactic_basic';
+        src: url('fonts/galbasic-webfont.woff2') format('woff2');
+        font-weight: normal;
+        font-style: normal;
+    }
+
+    * { 
+      box-sizing: border-box;
+    }
+    html {
+      background: #000;
+      color: #fff;
+      padding: 0;
+      margin: 0;
+    }
+    body {
+      font-family: trajan, serif;
+      padding: 0;
+      margin: 0 auto;
+      width: 1920px;
+      height: 1080px;
+      background: url(images/starwars_background.jpg) no-repeat center center;
+      position: relative;
+      overflow: hidden;
+    }
+    body::before, body::after {
+      content: "";
+      display: block;
+      position: absolute;
+      top: 0;
+      width: 501px;
+      height: 56px;
+      background-repeat: no-repeat;
+      background-position: center top;
+    }
+    body::before {
+      background-image: url(images/decoration_topleft.png);
+      left: -160px;
+    }
+    body::after {
+      background-image: url(images/decoration_topright.png);
+      right: -160px;
+    }
+
+    h2 {
+      font-family: galactic_basic;
+      font-size: 22px;
+      color: rgb(111, 233, 255);
       font-weight: normal;
-      font-style: normal;
+      text-shadow: 0 0 1.5rem #1d6cff, 0 0 1rem #1d6cff, 0 0 0.8rem #1d6cff;
+    }
 
-  }
-  @font-face {
-    font-family: 'almostthere';
-    src: url('fonts/almostthere-numeric-webfont.woff2') format('woff2');
-    font-weight: normal;
-    font-style: normal;
+    header h1, header h2 {
+      position: absolute;
+      padding: 0;
+      margin: 0;
+      width: 100%;
+      text-align: center;
+      font-weight: normal;
+    }
+    header h1 {
+      font-size: 90px;
+      top: 40px;
+      text-transform: uppercase;
+      text-shadow: rgba(0, 0, 0, 1) 0px 0px 8px
+    }
+    header h2 {
+      top: 138px;
+    }
 
-  }
+    nav {
+      padding: 120px 20px;
+      width: 426px;
+      height: 325px;
+      background: url(images/stats_box.png) no-repeat center center;
+      position: absolute;
+      bottom: 0;
+      left: 100px;
+      overflow: hidden;
+      color: #ff8f0c;
+      text-shadow: rgb(204, 10, 10) 0px 0px 8px
+    }
+    nav h2 {
+      font-family: galactic_basic;
+      position: absolute;
+      top: 6px;
+      left: 140px;
+      padding: 0;
+      margin: 0;
+      transform: perspective(11300px);
+    }
+    dl {
+      font-size: 60px;
+      font-family: scelet_af;
+      position: relative;
+      margin: 0;
+      padding: 0;
+      display: table;
+      width: 100%;
+    }
+    dl > div {
+      position: relative;
+      display: table-row;
+    }
+    dl > div > dt,
+    dl > div > dd {
+      display: table-cell;
+    }
+    dl > div > dt {
+      padding: 0 0 0 0;
+    }
+    dl > div > dd {
+      font-size: 70px;
+      font-family: almostthere;
+      text-align: right;
+    }
 
-  * { 
-    box-sizing: border-box;
-  }
-  html {
-    background: #000;
-    color: #fff;
-    padding: 0;
-    margin: 0;
-  }
-  body {
-    font-family: trajan, serif;
-    padding: 0;
-    margin: 0 auto;
-    width: 1920px;
-    height: 1080px;
-    background: url(images/starwars_background.jpg) no-repeat center center;
-    position: relative;
-    overflow: hidden;
-  }
-  body::before, body::after {
-    content: "";
-    display: block;
-    position: absolute;
-    top: 0;
-    width: 501px;
-    height: 56px;
-    background-repeat: no-repeat;
-    background-position: center top;
-  }
-  body::before {
-    background-image: url(images/decoration_topleft.png);
-    left: -160px;
-  }
-  body::after {
-    background-image: url(images/decoration_topright.png);
-    right: -160px;
-  }
+    dl > div > dd > span {
+      position: relative;
+      display: block;
+    }
 
-  h1 {
-    position: absolute;
-    margin: 0 auto;
-    padding: 0;
-    font-size: 90px;
-    top: 40px;
-    text-transform: uppercase;
-    text-align: center;
-    width: 100%;
-    font-weight: normal;
-  }
-  nav {
-    font-family: scelet_af;
-    font-size: 60px;
-    padding: 120px 20px;
-    width: 426px;
-    height: 325px;
-    background: url(images/stats_box.png) no-repeat center center;
-    position: absolute;
-    bottom: 0;
-    left: 100px;
-    overflow: hidden;
-    color: #ff8f0c;
-    text-shadow: rgb(204, 10, 10) 0px 0px 8px
-  }
-  dl {
-    margin: 0;
-    padding: 0;
-    display: table;
-    width: 100%;
-  }
-  dl > div {
-    position: relative;
-    display: table-row;
-  }
-  dl > div > dt,
-  dl > div > dd {
-    display: table-cell;
-  }
-  dl > div > dt {
-    padding: 0 0 0 0;
-  }
-  dl > div > dd {
-    font-size: 70px;
-    font-family: almostthere;
-    text-align: right;
-  }
+    dl > div > dd > span.below {
+      display: block;
+      position: absolute;
+      color: #46100c;
+      right: 0;
+      text-shadow: none;
+    }
 
-  dl > div > dd > span {
-    position: relative;
-    display: block;
-  }
+    figure {
+      margin: 0;
+      padding: 0;
+    }
 
-  .below {
-    display: block;
-    position: absolute;
-    color: #46100c;
-    right: 0;
-    top: 0;
-    opacity: 0.7;
-    text-shadow: none;
-  }
+    #portrait {
+      position: absolute;
+      display: block;
+      right: 100px;
+      top: 180px;
+      left: 600px;
+      bottom: 60px;
+      border: 2px solid #fff;
+      border-radius: 14px;
+      background-color: rgba(0, 0, 0, 0.5);
+      box-shadow: 0px 0px 9px 0px #00D;
+    }
 
-  figure {
-    position: absolute;
-    display: block;
-    right: 100px;
-    top: 160px;
-    left: 600px;
-    bottom: 60px;
-    border: 2px solid #fff;
-    border-radius: 14px;
-    background-color: rgba(0, 0, 0, 0.5);
-    box-shadow: 0px 0px 9px 0px #00D;
-  }
+    #portrait::before, #portrait::after {
+      content: "";
+      display: block;
+      position: absolute;
+      left: 7px;
+      top: 7px;
+      bottom: 7px;
+      right: 7px;
+      border-radius: 5px;
+    }
 
-  figure::before, figure::after {
-    content: "";
-    display: block;
-    position: absolute;
-    left: 7px;
-    top: 7px;
-    bottom: 7px;
-    right: 7px;
-    border-radius: 5px;
-  }
+    #portrait::after {
+      border: 1px solid #000;
+      margin: 1px;
+      background: linear-gradient(0deg, rgba(10,25,44,0) 70%, rgba(10,25,44,1) 100%); 
+    }
 
-  figure::after {
-    border: 1px solid #000;
-    margin: 1px;
-    background: linear-gradient(0deg, rgba(10,25,44,0) 70%, rgba(10,25,44,1) 100%); 
-  }
+    #portrait.bloodied::after {
+      background: linear-gradient(0deg, rgba(96,0,0,1) 0%, rgba(128,0,0,0.3) 50%, rgba(96,0,0,1) 100%);
+    }
 
-  figure::before {
-    background: linear-gradient(0deg, rgba(10,25,44,0) 0%, rgba(10,25,44,1) 100%); 
-    background-position: center top;
-    background-image: url(images/rowan.jpg);
-    position: absolute;
-    border: 1px solid #aaa;
-  }
-</style>
+    #portrait::before {
+      background-position: center top;
+      background-image: url(images/rowan.jpg);
+      position: absolute;
+      border: 1px solid #aaa;
+    }
+
+    #webcam {
+      display: block;
+      position: absolute;
+      top: 172px;
+      left: 91px;
+    }
+
+    #webcam::after {
+      content: "";
+      display: block;
+      position: absolute;
+      left: 20px;
+      top: 20px;
+      bottom: 20px;
+      right: 20px;
+      border-radius: 5px;
+      background-color: rgba(10,25,44,0.8);
+    }
+
+  </style>
+</head>
 
 <body>
-  <h1>Rowan Cloudcaster</h1>
+  <header>
+    <h2>Rowan Cloudcaster - pilot and wildcard</h2>  
+    <h1>Rowan Cloudcaster</h1>  
+  </header>
 
-  <figure>
+  <figure id="portrait">
   </figure>
 
   <nav id="stats">
+    <h2>Stats</h2>
     <div>
       <dl>
         <div>
           <dt>HP: </dt>
           <dd>
             <span class="below">00/00</span>
-            <span id="hp-value">12/12</span>
+            <span id="hp-value">00/00</span>
           </dd>
         </div>
         <div>
           <dt>AC: </dt>
           <dd>
             <span class="below">00</span>
-            <span id="ac-value">14</span>
+            <span id="ac-value">00</span>
           </dd>
         </div>
       </dl>
     </div>
   </nav>
 
+  <figure id="webcam">
+    <img src="images/webcam.png" />
+  </figure>
+
+  <script type="text/javascript">
+    function fetchCharacterAttributes() {
+      fetch('http://localhost:9090/rowan')
+        .then(function(response) {
+          return response.json()
+        }).then(function(json) {
+          console.log('parsed json', json)
+          hpVal = parseInt(json.attributes.hp)
+          hpMaxVal = parseInt(json.attributes.hpMax)
+          bloodied = hpVal < (hpMaxVal/2)
+          document.getElementById("hp-value").innerText = json.attributes.hp.padStart(2, '0') + "/"
+                                                        + json.attributes.hpMax.padStart(2, '0')
+          document.getElementById("ac-value").innerText = json.attributes.ac.padStart(2, '0')
+
+          if (bloodied) {
+            document.getElementById("portrait").classList.add("bloodied");
+          } else {            
+            document.getElementById("portrait").classList.remove("bloodied");
+          }
+
+        }).catch(function(ex) {
+          console.log('parsing failed', ex)
+        })      
+    }
+    fetchCharacterAttributes()
+    var intervalId = setInterval(fetchCharacterAttributes, 15000)
+  </script>
 </body>
 </html>

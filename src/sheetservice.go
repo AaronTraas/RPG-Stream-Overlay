@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/patrickmn/go-cache"
 
@@ -239,6 +240,11 @@ func main() {
 	// default 404 handler
 	router.NotFoundHandler = router.NewRoute().HandlerFunc(app.HandleNotFound).GetHandler()
 
+	credentials := handlers.AllowCredentials()
+	methods := handlers.AllowedMethods([]string{"POST"})
+	//ttl := handlers.MaxAge(3600)
+	origins := handlers.AllowedOrigins([]string{"*"})
+
 	log.Println("Character Sheet Service Application running on port 9090")
-	log.Fatal(http.ListenAndServe(":9090", router))
+	log.Fatal(http.ListenAndServe(":9090", handlers.CORS(credentials, methods, origins)(router)))
 }
