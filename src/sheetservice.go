@@ -116,7 +116,12 @@ func NewCharacterSheetApp() *CharacterSheetServiceApp {
 
 	// build list of character keys from map
 	for key := range app.Characters {
+		// create relative link to character endpoint
 		app.ValidUrls = append(app.ValidUrls, "/"+key)
+
+		// prime cache by fetching values for character
+		log.Printf("-- Querying attributes for '%s'... ", key)
+		app.LookupCharacter(key)
 	}
 
 	return &app
@@ -150,9 +155,6 @@ func (app CharacterSheetServiceApp) fetchCharacterAttributesFromSheetsApi(charCo
 }
 
 func (app CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string]string, bool, bool) {
-	log.Println("---")
-	log.Printf("Looking for character '%s'... ", charKey)
-
 	// invalid key; found is false
 	charConfig, keyExists := app.Characters[charKey]
 	if !keyExists {
@@ -163,12 +165,12 @@ func (app CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string
 
 	// cache hit! Return cached result.
 	if found {
-		log.Printf("CACHE hit - '%s'... ", charConfig.CharacterKey)
+		log.Printf("  * CACHE hit - '%s'... ", charConfig.CharacterKey)
 		return cachedCharMap.(*map[string]string), true, true
 	}
 
 	// cache miss - get result from Google Sheet API and store in cache.
-	log.Printf("CACHE miss - Retrieving attributes for '%s'... ", charConfig.CharacterKey)
+	log.Printf("  * CACHE miss - Retrieving attributes for '%s'... ", charConfig.CharacterKey)
 	charMap := app.fetchCharacterAttributesFromSheetsApi(charConfig)
 	app.Cache.Set(charKey, charMap, cache.DefaultExpiration)
 	// FIXME - potential race condition here. I should probably manage cache expiry manually, and
@@ -208,6 +210,8 @@ func (app CharacterSheetServiceApp) HandleCharacterRequest(w http.ResponseWriter
 	vars := mux.Vars(r)
 	charKey := vars["characterKey"]
 
+	log.Println("---")
+	log.Printf("Looking for character '%s'... ", charKey)
 	charAttributes, found, cached := app.LookupCharacter(charKey)
 
 	if !found {
@@ -236,7 +240,6 @@ func main() {
 
 	app := NewCharacterSheetApp()
 
-	// FIXME: prime the cache with all values before starting the mux.
 	router := mux.NewRouter()
 
 	// set up route for character lookup
