@@ -49,8 +49,8 @@ type ResponseMetadata struct {
 
 type ApiResponse struct {
 	Attributes    *map[string]string `json:"attributes,omitempty"`
-	CharacterUrls []string          `json:"characterUrls,omitempty"`
-	Metadata      ResponseMetadata  `json:"metadata"`
+	CharacterUrls []string           `json:"characterUrls,omitempty"`
+	Metadata      ResponseMetadata   `json:"metadata"`
 }
 
 func getConfig() map[string]ConfigEntry {
@@ -78,7 +78,7 @@ func getConfig() map[string]ConfigEntry {
 	return configMap
 }
 
-func getService() *sheets.Service {
+func getGoogleSheetService() *sheets.Service {
 	log.Println("-- connecting to Google Sheet API")
 
 	ctx := context.Background()
@@ -87,7 +87,6 @@ func getService() *sheets.Service {
 	if err != nil {
 		log.Fatalf("Unable to read API config file: %v", err)
 	}
-	log.Println("  * loaded api-key.json")
 
 	var apiConfig ApiConfig
 
@@ -95,13 +94,13 @@ func getService() *sheets.Service {
 	if err != nil {
 		log.Fatalf("Invalid api-key.json: %v", err)
 	}
-	log.Println("  * parsed key")
+	log.Println("  * loaded key from api-key.json")
 
-	log.Print("  * creating Google Sheet Service")
 	googleSheetService, err := sheets.NewService(ctx, option.WithAPIKey(apiConfig.ApiKey))
 	if err != nil {
 		log.Fatalf("Unable to retrieve Sheets client: %v", err)
 	}
+	log.Println("  * created Google Sheet Service")
 
 	return googleSheetService
 }
@@ -109,11 +108,12 @@ func getService() *sheets.Service {
 func NewCharacterSheetApp() *CharacterSheetServiceApp {
 	app := CharacterSheetServiceApp{
 		Characters:         getConfig(),
-		GoogleSheetService: getService(),
+		GoogleSheetService: getGoogleSheetService(),
 		// setup cache to cache items for maximum of 1 hours, default of 5 minutes
 		Cache: cache.New(1*time.Minute, time.Hour),
 	}
 
+	// build list of character keys from map
 	for key := range app.Characters {
 		app.ValidUrls = append(app.ValidUrls, "/"+key)
 	}
@@ -174,7 +174,7 @@ func (app CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string
 	return charMap, true, false
 }
 
-func writeJsonResponse(w http.ResponseWriter, response ApiResponse,) {
+func writeJsonResponse(w http.ResponseWriter, response ApiResponse) {
 	responseJson, _ := json.MarshalIndent(response, "", "  ")
 
 	w.WriteHeader(response.Metadata.StatusCode)

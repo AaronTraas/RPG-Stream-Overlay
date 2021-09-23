@@ -8,6 +8,21 @@
       font-style: normal;
   }
 
+  @font-face {
+      font-family: 'scelet_af';
+      src: url('fonts/sceletaf-webfont.woff2') format('woff2');
+      font-weight: normal;
+      font-style: normal;
+
+  }
+  @font-face {
+    font-family: 'almostthere';
+    src: url('fonts/almostthere-numeric-webfont.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+
+  }
+
   * { 
     box-sizing: border-box;
   }
@@ -58,8 +73,9 @@
     font-weight: normal;
   }
   nav {
-    font-size: 70px;
-    padding: 100px 20px;
+    font-family: scelet_af;
+    font-size: 60px;
+    padding: 120px 20px;
     width: 426px;
     height: 325px;
     background: url(images/stats_box.png) no-repeat center center;
@@ -67,6 +83,8 @@
     bottom: 0;
     left: 100px;
     overflow: hidden;
+    color: #ff8f0c;
+    text-shadow: rgb(204, 10, 10) 0px 0px 8px
   }
   dl {
     margin: 0;
@@ -75,17 +93,35 @@
     width: 100%;
   }
   dl > div {
+    position: relative;
     display: table-row;
   }
   dl > div > dt,
   dl > div > dd {
     display: table-cell;
-    padding: 5px 20px;
   }
   dl > div > dt {
+    padding: 0 0 0 0;
   }
   dl > div > dd {
+    font-size: 70px;
+    font-family: almostthere;
     text-align: right;
+  }
+
+  dl > div > dd > span {
+    position: relative;
+    display: block;
+  }
+
+  .below {
+    display: block;
+    position: absolute;
+    color: #46100c;
+    right: 0;
+    top: 0;
+    opacity: 0.7;
+    text-shadow: none;
   }
 
   figure {
@@ -138,11 +174,17 @@
       <dl>
         <div>
           <dt>HP: </dt>
-          <dd id="hp-value">0 / 0</dd>
+          <dd>
+            <span class="below">00/00</span>
+            <span id="hp-value">12/12</span>
+          </dd>
         </div>
         <div>
           <dt>AC: </dt>
-          <dd id="ac-value">0</dd>
+          <dd>
+            <span class="below">00</span>
+            <span id="ac-value">14</span>
+          </dd>
         </div>
       </dl>
     </div>
