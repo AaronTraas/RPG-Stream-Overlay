@@ -120,7 +120,7 @@ func NewCharacterSheetApp() *CharacterSheetServiceApp {
 	return &app
 }
 
-func (app CharacterSheetServiceApp) fetchCharacterAttributesFromSheetsApi(charConfig ConfigEntry) string {
+func (app CharacterSheetServiceApp) fetchCharacterAttributesFromSheetsApi(charConfig ConfigEntry) map[string]interface {
 	// Construct array of ranges to call from sheet in batch
 	ranges := []string{}
 	for _, attr := range charConfig.Attributes {
@@ -144,9 +144,7 @@ func (app CharacterSheetServiceApp) fetchCharacterAttributesFromSheetsApi(charCo
 		}
 	}
 
-	jsonBytes, _ := json.MarshalIndent(charMap, "", "  ")
-
-	return string(jsonBytes)
+	return charMap
 }
 
 func (app CharacterSheetServiceApp) LookupCharacter(charKey string) (string, bool) {
