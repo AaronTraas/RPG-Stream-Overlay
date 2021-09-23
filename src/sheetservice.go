@@ -165,12 +165,10 @@ func (app CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string
 
 	// cache hit! Return cached result.
 	if found {
-		log.Printf("  * CACHE hit - '%s'... ", charConfig.CharacterKey)
 		return cachedCharMap.(*map[string]string), true, true
 	}
 
 	// cache miss - get result from Google Sheet API and store in cache.
-	log.Printf("  * CACHE miss - Retrieving attributes for '%s'... ", charConfig.CharacterKey)
 	charMap := app.fetchCharacterAttributesFromSheetsApi(charConfig)
 	app.Cache.Set(charKey, charMap, cache.DefaultExpiration)
 	// FIXME - potential race condition here. I should probably manage cache expiry manually, and
