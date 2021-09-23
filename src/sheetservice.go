@@ -40,11 +40,11 @@ type CharacterSheetServiceApp struct {
 
 type ResponseMetadata struct {
 	StatusCode       int        `json:"statusCode"`
+	StatusMessage    string     `json:"statusMessage"`
 	ErrorMessage     string     `json:"errorMessage,omitempty"`
 	RequestUri       string     `json:"request"`
 	RequestTimestamp *time.Time `json:"requestTimestamp"`
 	Cached           bool       `json:"cached"`
-	CacheTimestamp   *time.Time `json:"cacheTimestamp,omitempty"`
 }
 
 type ApiResponse struct {
@@ -148,28 +148,30 @@ func (app CharacterSheetServiceApp) fetchCharacterAttributesFromSheetsApi(charCo
 	return &charMap
 }
 
-func (app CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string]string, bool) {
+func (app CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string]string, bool, bool) {
 	log.Println("---")
 	log.Printf("Looking for character '%s'... ", charKey)
 
+	// invalid key; found is false
 	charConfig, keyExists := app.Characters[charKey]
 	if !keyExists {
-		return nil, false
+		return nil, false, false
 	}
 
 	cachedCharMap, found := app.Cache.Get(charKey)
 
+	// cache hit! Return cached result.
 	if found {
 		log.Printf("CACHE hit - '%s'... ", charConfig.CharacterKey)
-		return cachedCharMap.(*map[string]string), true
+		return cachedCharMap.(*map[string]string), true, true
 	}
 
+	// cache miss - get result from Google Sheet API and store in cache.
 	log.Printf("CACHE miss - Retrieving attributes for '%s'... ", charConfig.CharacterKey)
 	charMap := app.fetchCharacterAttributesFromSheetsApi(charConfig)
 	app.Cache.Set(charKey, charMap, cache.DefaultExpiration)
-	log.Println(charMap)
 
-	return charMap, true
+	return charMap, true, false
 }
 
 func writeJsonResponse(w http.ResponseWriter, response ApiResponse,) {
@@ -186,6 +188,7 @@ func (app CharacterSheetServiceApp) HandleNotFound(w http.ResponseWriter, r *htt
 		CharacterUrls: app.ValidUrls,
 		Metadata: ResponseMetadata{
 			StatusCode:       http.StatusNotFound,
+			StatusMessage:    http.StatusText(http.StatusNotFound),
 			ErrorMessage:     "No character found; see list of valid character paths in the payload.",
 			RequestTimestamp: &now,
 			RequestUri:       r.URL.Path,
@@ -200,7 +203,7 @@ func (app CharacterSheetServiceApp) HandleCharacterRequest(w http.ResponseWriter
 	vars := mux.Vars(r)
 	charKey := vars["characterKey"]
 
-	charAttributes, found := app.LookupCharacter(charKey)
+	charAttributes, found, cached := app.LookupCharacter(charKey)
 
 	if !found {
 		log.Printf("Character '%s' not found.\n", charKey)
@@ -213,9 +216,10 @@ func (app CharacterSheetServiceApp) HandleCharacterRequest(w http.ResponseWriter
 		Attributes: charAttributes,
 		Metadata: ResponseMetadata{
 			StatusCode:       http.StatusOK,
+			StatusMessage:    http.StatusText(http.StatusOK),
 			RequestTimestamp: &now,
 			RequestUri:       r.URL.Path,
-			//Cached:           false,
+			Cached:           cached,
 		},
 	}
 
