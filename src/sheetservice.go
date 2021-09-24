@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/patrickmn/go-cache"
-
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 )
@@ -35,7 +33,8 @@ type CharacterSheetServiceApp struct {
 	Characters         map[string]ConfigEntry
 	ValidUrls          []string
 	GoogleSheetService *sheets.Service
-	Cache              *cache.Cache
+	Cache              map[string]*CacheEntry
+	// FIXME: use sync.Map instead, as map isn't necessarily threadsafe
 }
 
 type ResponseMetadata struct {
@@ -44,13 +43,18 @@ type ResponseMetadata struct {
 	ErrorMessage     string     `json:"errorMessage,omitempty"`
 	RequestUri       string     `json:"request"`
 	RequestTimestamp *time.Time `json:"requestTimestamp"`
-	Cached           bool       `json:"cached"`
 }
 
 type ApiResponse struct {
 	Attributes    *map[string]string `json:"attributes,omitempty"`
 	CharacterUrls []string           `json:"characterUrls,omitempty"`
 	Metadata      ResponseMetadata   `json:"metadata"`
+}
+
+type CacheEntry struct {
+	Attributes   *map[string]string
+	Expires      time.Time
+	UpdatingFlag bool
 }
 
 func LoadCharacterSheetConfig() map[string]ConfigEntry {
@@ -108,9 +112,10 @@ func NewCharacterSheetApp() *CharacterSheetServiceApp {
 	app := CharacterSheetServiceApp{
 		Characters:         LoadCharacterSheetConfig(),
 		GoogleSheetService: NewGoogleSheetService(),
-		// setup cache to cache items for maximum of 1 hours, default of 5 minutes
-		Cache: cache.New(1*time.Minute, time.Hour),
 	}
+
+	// create a map for the purpose of cacheing character attributes
+	app.Cache = make(map[string]*CacheEntry, len(app.Characters))
 
 	// build list of character keys from map
 	for key := range app.Characters {
@@ -119,13 +124,13 @@ func NewCharacterSheetApp() *CharacterSheetServiceApp {
 
 		// prime cache by fetching values for character
 		log.Printf("-- Querying attributes for '%s'... ", key)
-		app.LookupCharacter(key)
+		app.FetchCharacterAttributesFromSheetsApi(key)
 	}
 
 	return &app
 }
 
-func NewMetadata(requestPath string, httpStatusCode int, cached bool, errorMessage string) ResponseMetadata {
+func NewMetadata(requestPath string, httpStatusCode int, errorMessage string) ResponseMetadata {
 	now := time.Now()
 	return ResponseMetadata{
 		StatusCode:       httpStatusCode,
@@ -133,7 +138,6 @@ func NewMetadata(requestPath string, httpStatusCode int, cached bool, errorMessa
 		ErrorMessage:     errorMessage,
 		RequestTimestamp: &now,
 		RequestUri:       requestPath,
-		Cached:           cached,
 	}
 }
 
@@ -153,7 +157,17 @@ func WriteApiResponseJson(w http.ResponseWriter, response ApiResponse) {
 	log.Printf("--- request: %s -> %s", response.Metadata.RequestUri, message)
 }
 
-func (app *CharacterSheetServiceApp) FetchCharacterAttributesFromSheetsApi(charConfig ConfigEntry) *map[string]string {
+func (app *CharacterSheetServiceApp) UpdateCachedEntry(charKey string, charAttributes *map[string]string) {
+	app.Cache[charKey] = &CacheEntry{
+		Attributes:   charAttributes,
+		Expires:      time.Now().Add(30 * time.Second),
+		UpdatingFlag: false,
+	}
+}
+
+func (app *CharacterSheetServiceApp) FetchCharacterAttributesFromSheetsApi(charKey string) {
+	charConfig := app.Characters[charKey]
+
 	// Construct array of ranges to call from sheet in batch
 	ranges := []string{}
 	for _, attr := range charConfig.Attributes {
@@ -177,32 +191,26 @@ func (app *CharacterSheetServiceApp) FetchCharacterAttributesFromSheetsApi(charC
 		}
 	}
 
-	return &charMap
+	app.UpdateCachedEntry(charKey, &charMap)
+	log.Printf("***** done updating cache for '%s' *****", charKey)
 }
 
-func (app *CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string]string, bool, bool) {
-	// invalid key; found is false
-	charConfig, keyExists := app.Characters[charKey]
-	if !keyExists {
-		return nil, false, false
+func (app *CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string]string, bool) {
+	entry, found := app.Cache[charKey]
+	if !found {
+		return nil, false
 	}
 
-	cachedCharMap, found := app.Cache.Get(charKey)
+	now := time.Now()
+	if entry.UpdatingFlag == false && now.After(entry.Expires) {
+		entry.UpdatingFlag = true
+		app.Cache[charKey] = entry
 
-	// cache hit! Return cached result.
-	if found {
-		return cachedCharMap.(*map[string]string), true, true
+		log.Printf("***** cache expired for '%s'; fetching update *****", charKey)
+		go app.FetchCharacterAttributesFromSheetsApi(charKey)
 	}
 
-	// cache miss - get result from Google Sheet API and store in cache.
-	charMap := app.FetchCharacterAttributesFromSheetsApi(charConfig)
-	app.Cache.Set(charKey, charMap, cache.DefaultExpiration)
-	// FIXME - potential race condition here. I should probably manage cache expiry manually, and
-	// trigger a goroutine locked behind a semaphor to update the cache in the background, and in
-	// the meantime return the cached values. This way, we can never be making more than one query
-	// at a time.
-
-	return charMap, true, false
+	return entry.Attributes, true
 }
 
 func (app *CharacterSheetServiceApp) HandleRequest(w http.ResponseWriter, r *http.Request) {
@@ -212,7 +220,7 @@ func (app *CharacterSheetServiceApp) HandleRequest(w http.ResponseWriter, r *htt
 		// Not GET - 405 Method Not Allowederror
 		WriteApiResponseJson(w, ApiResponse{
 			CharacterUrls: app.ValidUrls,
-			Metadata: NewMetadata(requestPath, http.StatusMethodNotAllowed, false,
+			Metadata: NewMetadata(requestPath, http.StatusMethodNotAllowed,
 				fmt.Sprintf("Method '%s' not allowed; you must use GET for this web service.", r.Method)),
 		})
 		return
@@ -222,14 +230,14 @@ func (app *CharacterSheetServiceApp) HandleRequest(w http.ResponseWriter, r *htt
 	// once the leading and trailing slash are stripped.
 	charKey := strings.Trim(requestPath, "/")
 
-	log.Printf("Looking for character '%s'... ", charKey)
-	charAttributes, found, cached := app.LookupCharacter(charKey)
+	// looking for character
+	charAttributes, found := app.LookupCharacter(charKey)
 
 	if !found {
 		// Result not found - 404 Not Found error
 		WriteApiResponseJson(w, ApiResponse{
 			CharacterUrls: app.ValidUrls,
-			Metadata: NewMetadata(requestPath, http.StatusNotFound, false,
+			Metadata: NewMetadata(requestPath, http.StatusNotFound,
 				fmt.Sprintf("No character '%s' found; see list of valid character paths in the payload.", charKey)),
 		})
 		return
@@ -237,7 +245,7 @@ func (app *CharacterSheetServiceApp) HandleRequest(w http.ResponseWriter, r *htt
 
 	WriteApiResponseJson(w, ApiResponse{
 		Attributes: charAttributes,
-		Metadata:   NewMetadata(requestPath, http.StatusOK, cached, ""),
+		Metadata:   NewMetadata(requestPath, http.StatusOK, ""),
 	})
 }
 
