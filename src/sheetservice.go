@@ -34,7 +34,10 @@ type CharacterSheetServiceApp struct {
 	ValidUrls          []string
 	GoogleSheetService *sheets.Service
 	Cache              map[string]*CacheEntry
-	// FIXME: use sync.Map instead, as map isn't necessarily threadsafe
+	/////////////////////////////////////////////////////////////////////////
+	// FIXME: use sync.Map instead, as map isn't necessarily threadsafe.   //
+	//        Unfortunately, that trades type safety for thread safety...  //
+	/////////////////////////////////////////////////////////////////////////
 }
 
 type ResponseMetadata struct {
@@ -201,12 +204,15 @@ func (app *CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[strin
 		return nil, false
 	}
 
+	// Check to see if cache should expire, and fetch update in parallel if expiry is past. 
 	now := time.Now()
 	if entry.UpdatingFlag == false && now.After(entry.Expires) {
 		entry.UpdatingFlag = true
 		app.Cache[charKey] = entry
 
 		log.Printf("***** cache expired for '%s'; fetching update *****", charKey)
+
+		// Run fetch routine in a seperate thread
 		go app.FetchCharacterAttributesFromSheetsApi(charKey)
 	}
 
