@@ -137,7 +137,23 @@ func NewMetadata(requestPath string, httpStatusCode int, cached bool, errorMessa
 	}
 }
 
-func (app CharacterSheetServiceApp) FetchCharacterAttributesFromSheetsApi(charConfig ConfigEntry) *map[string]string {
+func WriteApiResponseJson(w http.ResponseWriter, response ApiResponse) {
+	responseJson, _ := json.MarshalIndent(response, "", "  ")
+
+	w.WriteHeader(response.Metadata.StatusCode)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*") // CORS allow everything
+	w.Write(responseJson)
+
+	message := response.Metadata.ErrorMessage
+	if message == "" {
+		bytes, _ := json.Marshal(response.Attributes)
+		message = string(bytes)
+	}
+	log.Printf("--- request: %s -> %s", response.Metadata.RequestUri, message)
+}
+
+func (app *CharacterSheetServiceApp) FetchCharacterAttributesFromSheetsApi(charConfig ConfigEntry) *map[string]string {
 	// Construct array of ranges to call from sheet in batch
 	ranges := []string{}
 	for _, attr := range charConfig.Attributes {
@@ -164,7 +180,7 @@ func (app CharacterSheetServiceApp) FetchCharacterAttributesFromSheetsApi(charCo
 	return &charMap
 }
 
-func (app CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string]string, bool, bool) {
+func (app *CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string]string, bool, bool) {
 	// invalid key; found is false
 	charConfig, keyExists := app.Characters[charKey]
 	if !keyExists {
@@ -189,23 +205,7 @@ func (app CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string
 	return charMap, true, false
 }
 
-func WriteApiResponseJson(w http.ResponseWriter, response ApiResponse) {
-	responseJson, _ := json.MarshalIndent(response, "", "  ")
-
-	w.WriteHeader(response.Metadata.StatusCode)
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*") // CORS allow everything
-	w.Write(responseJson)
-
-	message := response.Metadata.ErrorMessage
-	if message == "" {
-		bytes, _ := json.Marshal(response.Attributes)
-		message = string(bytes)
-	}
-	log.Printf("--- request: %s -> %s", response.Metadata.RequestUri, message)
-}
-
-func (app CharacterSheetServiceApp) HandleRequest(w http.ResponseWriter, r *http.Request) {
+func (app *CharacterSheetServiceApp) HandleRequest(w http.ResponseWriter, r *http.Request) {
 	requestPath := r.URL.Path
 
 	if r.Method != http.MethodGet {
