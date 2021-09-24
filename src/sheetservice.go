@@ -151,7 +151,7 @@ func (app CharacterSheetServiceApp) FetchCharacterAttributesFromSheetsApi(charCo
 	}
 
 	// map ranges to names from config attributes
-	charMap := map[string]string{}
+	charMap := make(map[string]string, len(charConfig.Attributes))
 	for i, attr := range charConfig.Attributes {
 		valueRange := batchResp.ValueRanges[i]
 		if len(valueRange.Values) == 0 {
