@@ -53,7 +53,7 @@ type ApiResponse struct {
 	Metadata      ResponseMetadata   `json:"metadata"`
 }
 
-func getConfig() map[string]ConfigEntry {
+func LoadCharacterSheetConfig() map[string]ConfigEntry {
 	log.Println("-- loading character configuration")
 
 	fileBytes, err := ioutil.ReadFile("config.json")
@@ -77,7 +77,7 @@ func getConfig() map[string]ConfigEntry {
 	return configMap
 }
 
-func getGoogleSheetService() *sheets.Service {
+func NewGoogleSheetService() *sheets.Service {
 	log.Println("-- connecting to Google Sheet API")
 
 	ctx := context.Background()
@@ -106,8 +106,8 @@ func getGoogleSheetService() *sheets.Service {
 
 func NewCharacterSheetApp() *CharacterSheetServiceApp {
 	app := CharacterSheetServiceApp{
-		Characters:         getConfig(),
-		GoogleSheetService: getGoogleSheetService(),
+		Characters:         LoadCharacterSheetConfig(),
+		GoogleSheetService: NewGoogleSheetService(),
 		// setup cache to cache items for maximum of 1 hours, default of 5 minutes
 		Cache: cache.New(1*time.Minute, time.Hour),
 	}
@@ -137,7 +137,7 @@ func NewMetadata(requestPath string, httpStatusCode int, cached bool, errorMessa
 	}
 }
 
-func (app CharacterSheetServiceApp) fetchCharacterAttributesFromSheetsApi(charConfig ConfigEntry) *map[string]string {
+func (app CharacterSheetServiceApp) FetchCharacterAttributesFromSheetsApi(charConfig ConfigEntry) *map[string]string {
 	// Construct array of ranges to call from sheet in batch
 	ranges := []string{}
 	for _, attr := range charConfig.Attributes {
@@ -179,7 +179,7 @@ func (app CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string
 	}
 
 	// cache miss - get result from Google Sheet API and store in cache.
-	charMap := app.fetchCharacterAttributesFromSheetsApi(charConfig)
+	charMap := app.FetchCharacterAttributesFromSheetsApi(charConfig)
 	app.Cache.Set(charKey, charMap, cache.DefaultExpiration)
 	// FIXME - potential race condition here. I should probably manage cache expiry manually, and
 	// trigger a goroutine locked behind a semaphor to update the cache in the background, and in
