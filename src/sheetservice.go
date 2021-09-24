@@ -7,10 +7,9 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
 	"github.com/patrickmn/go-cache"
 
 	"google.golang.org/api/option"
@@ -69,7 +68,7 @@ func getConfig() map[string]ConfigEntry {
 		log.Fatalf("Invalid config.json: %v", err)
 	}
 
-	configMap := map[string]ConfigEntry{}
+	configMap := make(map[string]ConfigEntry, len(config))
 	for _, configEntry := range config {
 		log.Printf("  * loaded config for '%s'\n", configEntry.CharacterKey)
 		configMap[configEntry.CharacterKey] = configEntry
@@ -126,6 +125,18 @@ func NewCharacterSheetApp() *CharacterSheetServiceApp {
 	return &app
 }
 
+func NewMetadata(requestPath string, httpStatusCode int, cached bool, errorMessage string) ResponseMetadata {
+	now := time.Now()
+	return ResponseMetadata{
+		StatusCode:       httpStatusCode,
+		StatusMessage:    http.StatusText(httpStatusCode),
+		ErrorMessage:     errorMessage,
+		RequestTimestamp: &now,
+		RequestUri:       requestPath,
+		Cached:           cached,
+	}
+}
+
 func (app CharacterSheetServiceApp) fetchCharacterAttributesFromSheetsApi(charConfig ConfigEntry) *map[string]string {
 	// Construct array of ranges to call from sheet in batch
 	ranges := []string{}
@@ -178,58 +189,56 @@ func (app CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string
 	return charMap, true, false
 }
 
-func writeJsonResponse(w http.ResponseWriter, response ApiResponse) {
+func WriteApiResponseJson(w http.ResponseWriter, response ApiResponse) {
 	responseJson, _ := json.MarshalIndent(response, "", "  ")
 
 	w.WriteHeader(response.Metadata.StatusCode)
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*") // CORS allow everything
 	w.Write(responseJson)
+
+	message := response.Metadata.ErrorMessage
+	if message == "" {
+		bytes, _ := json.Marshal(response.Attributes)
+		message = string(bytes)
+	}
+	log.Printf("--- request: %s -> %s", response.Metadata.RequestUri, message)
 }
 
-func (app CharacterSheetServiceApp) HandleNotFound(w http.ResponseWriter, r *http.Request) {
-	now := time.Now()
-	response := ApiResponse{
-		CharacterUrls: app.ValidUrls,
-		Metadata: ResponseMetadata{
-			StatusCode:       http.StatusNotFound,
-			StatusMessage:    http.StatusText(http.StatusNotFound),
-			ErrorMessage:     "No character found; see list of valid character paths in the payload.",
-			RequestTimestamp: &now,
-			RequestUri:       r.URL.Path,
-			Cached:           false,
-		},
+func (app CharacterSheetServiceApp) HandleRequest(w http.ResponseWriter, r *http.Request) {
+	requestPath := r.URL.Path
+
+	if r.Method != http.MethodGet {
+		// Not GET - 405 Method Not Allowederror
+		WriteApiResponseJson(w, ApiResponse{
+			CharacterUrls: app.ValidUrls,
+			Metadata: NewMetadata(requestPath, http.StatusMethodNotAllowed, false,
+				fmt.Sprintf("Method '%s' not allowed; you must use GET for this web service.", r.Method)),
+		})
+		return
 	}
 
-	writeJsonResponse(w, response)
-}
+	// as we're a single endpoint, we want to use all of the path as the character key,
+	// once the leading and trailing slash are stripped.
+	charKey := strings.Trim(requestPath, "/")
 
-func (app CharacterSheetServiceApp) HandleCharacterRequest(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	charKey := vars["characterKey"]
-
-	log.Println("---")
 	log.Printf("Looking for character '%s'... ", charKey)
 	charAttributes, found, cached := app.LookupCharacter(charKey)
 
 	if !found {
-		log.Printf("Character '%s' not found.\n", charKey)
-		app.HandleNotFound(w, r)
+		// Result not found - 404 Not Found error
+		WriteApiResponseJson(w, ApiResponse{
+			CharacterUrls: app.ValidUrls,
+			Metadata: NewMetadata(requestPath, http.StatusNotFound, false,
+				fmt.Sprintf("No character '%s' found; see list of valid character paths in the payload.", charKey)),
+		})
 		return
 	}
 
-	now := time.Now()
-	response := ApiResponse{
+	WriteApiResponseJson(w, ApiResponse{
 		Attributes: charAttributes,
-		Metadata: ResponseMetadata{
-			StatusCode:       http.StatusOK,
-			StatusMessage:    http.StatusText(http.StatusOK),
-			RequestTimestamp: &now,
-			RequestUri:       r.URL.Path,
-			Cached:           cached,
-		},
-	}
-
-	writeJsonResponse(w, response)
+		Metadata:   NewMetadata(requestPath, http.StatusOK, cached, ""),
+	})
 }
 
 func main() {
@@ -237,19 +246,9 @@ func main() {
 
 	app := NewCharacterSheetApp()
 
-	router := mux.NewRouter()
-
 	// set up route for character lookup
-	router.HandleFunc("/{characterKey}", app.HandleCharacterRequest).Methods("GET")
-
-	// default 404 handler
-	router.NotFoundHandler = router.NewRoute().HandlerFunc(app.HandleNotFound).GetHandler()
-
-	// CORS stuff -- no security at all! It's fine, because there's very little damage we can do.
-	credentials := handlers.AllowCredentials()
-	methods := handlers.AllowedMethods([]string{"POST"})
-	origins := handlers.AllowedOrigins([]string{"*"})
+	http.HandleFunc("/", app.HandleRequest)
 
 	log.Println("Character Sheet Service Application running on port 9090")
-	log.Fatal(http.ListenAndServe(":9090", handlers.CORS(credentials, methods, origins)(router)))
+	log.Fatal(http.ListenAndServe(":9090", nil))
 }
