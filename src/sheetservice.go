@@ -140,9 +140,9 @@ func NewMetadata(requestPath string, httpStatusCode int, cached bool, errorMessa
 func WriteApiResponseJson(w http.ResponseWriter, response ApiResponse) {
 	responseJson, _ := json.MarshalIndent(response, "", "  ")
 
-	w.WriteHeader(response.Metadata.StatusCode)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*") // CORS allow everything
+	w.WriteHeader(response.Metadata.StatusCode)
 	w.Write(responseJson)
 
 	message := response.Metadata.ErrorMessage
