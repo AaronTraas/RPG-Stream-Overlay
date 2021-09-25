@@ -179,8 +179,6 @@
       border-radius: 14px;
       background-color: rgba(0, 0, 0, 0.5);
       box-shadow: 0px 0px 9px 0px #00D;
-      
-
     }
 
     #portrait::before, #portrait::after {
@@ -270,8 +268,28 @@
   </figure>
 
   <script type="text/javascript">
+    var characterKey = null
+
+    function parseHashBangArgs() {
+      var params = {}
+      try {
+        var hash = window.location.hash.substring(1).split('?')[1];
+        
+        hash.split('&').map(hk => { 
+          let temp = hk.split('='); 
+          params[temp[0]] = temp[1] 
+        });
+      } catch (e) {
+        console.warn('no hash query variables')
+      }
+      return params;
+    }
+
     function fetchCharacterAttributes() {
-      fetch('http://localhost:9090/rowan')
+      if (characterKey === null) {
+        return
+      }
+      fetch('http://localhost:9090/' + characterKey)
         .then(function(response) {
           return response.json()
         }).then(function(json) {
@@ -279,7 +297,7 @@
           hpVal = parseInt(json.attributes.hp)
           hpMaxVal = parseInt(json.attributes.hpMax)
           bloodied = hpVal < (hpMaxVal/2)
-          document.getElementById("hp-value").innerText = json.attributes.hp.padStart(2, '0') + "/"
+          document.getElementById("hp-value").innerText = json.attributes.hp.padStart(2, '0') + '/'
                                                         + json.attributes.hpMax.padStart(2, '0')
           document.getElementById("ac-value").innerText = json.attributes.ac.padStart(2, '0')
           document.getElementById("character-name").innerText = json.attributes.name
@@ -297,8 +315,19 @@
           console.log('parsing failed', ex)
         })      
     }
+    let params = parseHashBangArgs()
+
+    console.log(params)
+
+    if (params['character']) {
+      characterKey = params['character']
+    }
+
     fetchCharacterAttributes()
-    var intervalId = setInterval(fetchCharacterAttributes, 1000)
+
+    if (params['update'] == 'true') {
+      var intervalId = setInterval(fetchCharacterAttributes, 1000)
+    }
   </script>
 </body>
 </html>
