@@ -204,7 +204,7 @@ func (app *CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[strin
 		return nil, false
 	}
 
-	// Check to see if cache should expire, and fetch update in parallel if expiry is past. 
+	// Check to see if cache should expire, and fetch update in parallel if expiry is past.
 	now := time.Now()
 	if entry.UpdatingFlag == false && now.After(entry.Expires) {
 		entry.UpdatingFlag = true
@@ -259,6 +259,11 @@ func main() {
 	log.Println("Starting Character Sheet Service Application... ")
 
 	app := NewCharacterSheetApp()
+
+	// handler for Favicon, because all browsers seem to query for one, even for web services
+	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "static/favicon.ico")
+	})
 
 	// set up route for character lookup
 	http.HandleFunc("/", app.HandleRequest)
