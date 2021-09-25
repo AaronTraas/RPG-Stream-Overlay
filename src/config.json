@@ -9,7 +9,8 @@
             {"name": "initiative", "range": "INITIATIVE"},
             {"name": "name", "range": "CHARACTER_NAME"},
             {"name": "race", "range": "SUB_SPECIES"},
-            {"name": "class", "range": "CLASS_1"}
+            {"name": "class", "range": "CLASS_1"},
+            {"name": "portraitUrl", "range": "StreamConfig!B2"}
         ]
     }
 ]

@@ -181,8 +181,10 @@
       box-shadow: 0px 0px 9px 0px #00D;
     }
 
-    #portrait::before, #portrait::after {
-      content: "";
+    #portrait .video-container, 
+    #portrait::after, 
+    #portrait-image 
+    {
       display: block;
       position: absolute;
       left: 7px;
@@ -190,9 +192,16 @@
       bottom: 7px;
       right: 7px;
       border-radius: 5px;
+      overflow: hidden;
+    }
+
+    #portrait-image,
+    #portrait .video-container {
+      border: 1px solid #aaa;
     }
 
     #portrait::after {
+      content: "";
       border: 1px solid #000;
       margin: 1px;
       background: linear-gradient(0deg, rgba(10,25,44,0) 70%, rgba(10,25,44,1) 100%); 
@@ -202,11 +211,31 @@
       background: linear-gradient(0deg, rgba(96,0,0,1) 0%, rgba(128,0,0,0.3) 50%, rgba(96,0,0,1) 100%);
     }
 
-    #portrait::before {
+    #portrait-image {
       background-position: center top;
-      background-image: url(images/rowan.jpg);
+    }
+
+    figcaption {
+      display: table;
       position: absolute;
-      border: 1px solid #aaa;
+      top: 100px;
+      bottom: 100px;
+      left: 100px;
+      right: 100px;
+      font-size: 140px;
+      text-align: center;
+      padding: 0;
+      margin: 0;
+      height: 650px; 
+      overflow: hidden;
+
+      font-family: trajan, serif;
+      text-transform: uppercase;
+    }
+
+    .fake-table-cell {
+      display: table-cell; 
+      vertical-align: middle;
     }
 
     #webcam {
@@ -216,18 +245,48 @@
       left: 91px;
     }
 
-    #webcam::after {
-      content: "";
-      display: block;
-      position: absolute;
+    #webcam .video-container, #webcam::after {
       left: 20px;
       top: 20px;
       bottom: 20px;
       right: 20px;
+      position: absolute;
+      display: block;
       border-radius: 5px;
       background-color: rgba(10,25,44,0.8);
     }
 
+    #portrait .video-container,
+    #webcam .video-container {
+      display: none;
+    }
+
+    #webcam::after {
+      content: "";
+    }
+
+    video {
+      display: block;
+      width: 100%;
+      height: 100%;      
+      object-fit: cover;
+    }
+
+    .screen-drink-show {
+      display: none;
+    }
+
+    body.screen-drink .screen-drink-show,
+    body.screen-drink #webcam .video-container,
+    body.screen-drink #portrait .video-container {
+      display: block;
+    }
+
+    body.screen-drink #webcam::after,
+    body.screen-drink #portrait::after,
+    body.screen-drink #portrait-image {
+      display: none;
+    }
   </style>
 </head>
 
@@ -236,7 +295,6 @@
     <h2 id="class-and-race">Loading class and race...</h2>  
     <h1 id="character-name">Loading...</h1>  
   </header>
-
 
   <nav id="stats">
     <h2>Stats</h2>
@@ -262,9 +320,26 @@
 
   <figure id="webcam">
     <img src="images/webcam.png" alt="webcam frame" />
+    <div class="video-container">
+      <video playsinline loop preload autoplay>
+        <source src="video/hyperspace_small.mp4" />
+      </video>
+    </div>
   </figure>
 
   <figure id="portrait">
+    <div id="portrait-image"></div>
+    <div class="video-container">
+      <video playsinline loop preload autoplay>
+        <source src="video/cantina_luke_bartender.mp4" />
+      </video>
+    </div>
+
+    <figcaption>
+        <div class="fake-table-cell">
+          <span class="screen-drink-show">Aaron is fetching a drink</span>
+        </div>
+    </figcaption>
   </figure>
 
   <script type="text/javascript">
@@ -304,6 +379,7 @@
           document.getElementById("class-and-race").innerText = json.attributes.name + " - "
                                                               + json.attributes.race + " "
                                                               + json.attributes.class
+          document.getElementById("portrait-image").style["background-image"] = 'url(' + json.attributes.portraitUrl + ')'
 
           if (bloodied) {
             document.getElementById("portrait").classList.add("bloodied");
@@ -321,6 +397,10 @@
 
     if (params['character']) {
       characterKey = params['character']
+    }
+
+    if (params['screen']) {
+      document.body.classList.add('screen-' + params['screen'])
     }
 
     fetchCharacterAttributes()
