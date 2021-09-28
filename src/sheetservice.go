@@ -266,11 +266,6 @@ func main() {
 
 	app := NewCharacterSheetApp()
 
-	// handler for Favicon, because all browsers seem to query for one, even for web services
-	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "static/favicon.ico")
-	})
-
 	// set up route for character lookup
 	http.HandleFunc("/", app.HandleRequest)
 
