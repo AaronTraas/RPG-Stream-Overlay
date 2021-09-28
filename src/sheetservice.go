@@ -34,8 +34,7 @@ type CharacterSheetServiceApp struct {
 	Characters         map[string]ConfigEntry
 	ValidUrls          []string
 	GoogleSheetService *sheets.Service
-	Cache              map[string]*CacheEntry
-	CacheLock          sync.RWMutex
+	Cache              CharacterAttributeCache
 }
 
 type ResponseMetadata struct {
@@ -52,7 +51,12 @@ type ApiResponse struct {
 	Metadata      ResponseMetadata   `json:"metadata"`
 }
 
-type CacheEntry struct {
+type CharacterAttributeCache struct {
+	cacheMap map[string]*CharacterAttributeCacheEntry
+	lock     sync.RWMutex
+}
+
+type CharacterAttributeCacheEntry struct {
 	Attributes   *map[string]string
 	Expires      time.Time
 	UpdatingFlag bool
@@ -116,7 +120,9 @@ func NewCharacterSheetApp() *CharacterSheetServiceApp {
 	}
 
 	// create a map for the purpose of cacheing character attributes
-	app.Cache = make(map[string]*CacheEntry, len(app.Characters))
+	app.Cache = CharacterAttributeCache{
+		cacheMap: make(map[string]*CharacterAttributeCacheEntry, len(app.Characters)),
+	}
 
 	// build list of character keys from map
 	for key := range app.Characters {
@@ -158,12 +164,29 @@ func WriteApiResponseJson(w http.ResponseWriter, response ApiResponse) {
 	log.Printf("--- request: %s -> %s", response.Metadata.RequestUri, message)
 }
 
-func NewCachedEntry(charAttributes *map[string]string) *CacheEntry {
-	return &CacheEntry{
+func NewCachedEntry(charAttributes *map[string]string) *CharacterAttributeCacheEntry {
+	return &CharacterAttributeCacheEntry{
 		Attributes:   charAttributes,
 		Expires:      time.Now().Add(30 * time.Second),
 		UpdatingFlag: false,
 	}
+}
+
+func (cache *CharacterAttributeCache) Get(charKey string) (*CharacterAttributeCacheEntry, bool) {
+	cache.lock.RLock()
+	entry, found := cache.cacheMap[charKey]
+	cache.lock.RUnlock()
+
+	if !found {
+		return nil, false
+	}
+	return entry, true
+}
+
+func (cache *CharacterAttributeCache) Set(charKey string, entry *CharacterAttributeCacheEntry) {
+	cache.lock.Lock()
+	cache.cacheMap[charKey] = entry
+	cache.lock.Unlock()
 }
 
 func (app *CharacterSheetServiceApp) FetchCharacterAttributesFromSheetsApi(charKey string) {
@@ -194,16 +217,13 @@ func (app *CharacterSheetServiceApp) FetchCharacterAttributesFromSheetsApi(charK
 
 	entry := NewCachedEntry(&charMap)
 
-	app.CacheLock.Lock()
-	app.Cache[charKey] = entry
-	app.CacheLock.Unlock()
+	app.Cache.Set(charKey, entry)
+
 	log.Printf("***** done updating cache for '%s' *****", charKey)
 }
 
 func (app *CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string]string, bool) {
-	app.CacheLock.RLock()
-	entry, found := app.Cache[charKey]
-	app.CacheLock.RUnlock()
+	entry, found := app.Cache.Get(charKey)
 	if !found {
 		return nil, false
 	}
@@ -211,10 +231,8 @@ func (app *CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[strin
 	// Check to see if cache should expire, and fetch update in parallel if expiry is past.
 	now := time.Now()
 	if entry.UpdatingFlag == false && now.After(entry.Expires) {
-		app.CacheLock.Lock()
 		entry.UpdatingFlag = true
-		app.Cache[charKey] = entry
-		app.CacheLock.Unlock()
+		app.Cache.Set(charKey, entry)
 
 		log.Printf("***** cache expired for '%s'; fetching update *****", charKey)
 
