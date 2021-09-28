@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"google.golang.org/api/option"
@@ -34,10 +35,7 @@ type CharacterSheetServiceApp struct {
 	ValidUrls          []string
 	GoogleSheetService *sheets.Service
 	Cache              map[string]*CacheEntry
-	/////////////////////////////////////////////////////////////////////////
-	// FIXME: use sync.Map instead, as map isn't necessarily threadsafe.   //
-	//        Unfortunately, that trades type safety for thread safety...  //
-	/////////////////////////////////////////////////////////////////////////
+	CacheLock          sync.RWMutex
 }
 
 type ResponseMetadata struct {
@@ -160,8 +158,8 @@ func WriteApiResponseJson(w http.ResponseWriter, response ApiResponse) {
 	log.Printf("--- request: %s -> %s", response.Metadata.RequestUri, message)
 }
 
-func (app *CharacterSheetServiceApp) UpdateCachedEntry(charKey string, charAttributes *map[string]string) {
-	app.Cache[charKey] = &CacheEntry{
+func NewCachedEntry(charAttributes *map[string]string) *CacheEntry {
+	return &CacheEntry{
 		Attributes:   charAttributes,
 		Expires:      time.Now().Add(30 * time.Second),
 		UpdatingFlag: false,
@@ -194,12 +192,18 @@ func (app *CharacterSheetServiceApp) FetchCharacterAttributesFromSheetsApi(charK
 		}
 	}
 
-	app.UpdateCachedEntry(charKey, &charMap)
+	entry := NewCachedEntry(&charMap)
+
+	app.CacheLock.Lock()
+	app.Cache[charKey] = entry
+	app.CacheLock.Unlock()
 	log.Printf("***** done updating cache for '%s' *****", charKey)
 }
 
 func (app *CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[string]string, bool) {
+	app.CacheLock.RLock()
 	entry, found := app.Cache[charKey]
+	app.CacheLock.RUnlock()
 	if !found {
 		return nil, false
 	}
@@ -207,8 +211,10 @@ func (app *CharacterSheetServiceApp) LookupCharacter(charKey string) (*map[strin
 	// Check to see if cache should expire, and fetch update in parallel if expiry is past.
 	now := time.Now()
 	if entry.UpdatingFlag == false && now.After(entry.Expires) {
+		app.CacheLock.Lock()
 		entry.UpdatingFlag = true
 		app.Cache[charKey] = entry
+		app.CacheLock.Unlock()
 
 		log.Printf("***** cache expired for '%s'; fetching update *****", charKey)
 
